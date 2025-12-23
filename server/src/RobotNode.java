@@ -1,6 +1,8 @@
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.AffineTransform;
+
 
 public class RobotNode {
     private double x;

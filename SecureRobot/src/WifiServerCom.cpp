@@ -3,10 +3,10 @@
 #include <WiFiClient.h>
 
 // TODO: byt till ditt riktiga nätverk + server-IP
-static const char* WIFI_SSID      = "bodite";
-static const char* WIFI_PASSWORD  = "123123123";   // undvik å/ä/ö i källkod
-static const char* SERVER_IP      = "10.157.208.13";      // datorns IP-adress
-static const uint16_t SERVER_PORT = 5000;                 // Java-servern
+static const char* WIFI_SSID      = "FadiHS";
+static const char* WIFI_PASSWORD  = "fadi2003";
+static const char* SERVER_IP      = "192.168.62.153";
+static const uint16_t SERVER_PORT = 5000;
 
 static WiFiClient serverClient;
 static unsigned long lastConnectAttempt = 0;
