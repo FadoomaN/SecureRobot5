@@ -7,6 +7,7 @@ static const char* WIFI_SSID      = "FadiHS";
 static const char* WIFI_PASSWORD  = "fadi2003";
 static const char* SERVER_IP      = "192.168.62.153";
 static const uint16_t SERVER_PORT = 5000;
+static const uint16_t FROM_SERVER_PORT = 4999;
 
 static WiFiClient serverClient;
 static unsigned long lastConnectAttempt = 0;
@@ -28,6 +29,7 @@ static void ensureWifiConnected() {
     Serial.println(WiFi.localIP());
 }
 
+
 static void ensureServerConnected() {
     if (serverClient.connected()) return;
 
@@ -47,11 +49,13 @@ static void ensureServerConnected() {
     Serial.println("Connected to server");
 }
 
+
 void wifiServerSetup() {
     ensureWifiConnected();
     ensureServerConnected();
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
+
 
 void wifiServerLoop() {
     // Hålla kopplingen vid liv
@@ -62,6 +66,7 @@ void wifiServerLoop() {
         ensureServerConnected();
     }
 }
+
 
 bool sendToServer(const String& line) {
     if (WiFi.status() != WL_CONNECTED) {
@@ -82,3 +87,55 @@ bool sendToServer(const String& line) {
     size_t written = serverClient.print(withNewline);
     return written == withNewline.length();
 }
+
+
+void receiveFromServer(void* param)
+{
+    (void)param;
+
+    static WiFiServer rxServer(FROM_SERVER_PORT);
+    static bool started = false;
+
+    if (!started) {
+        rxServer.begin();
+        rxServer.setNoDelay(true);
+        started = true;
+        Serial.println("RX server listening on port 4999");
+    }
+
+    WiFiClient rxClient;
+    String inputBuffer;
+
+    while (true)
+    {
+        if (!rxClient || !rxClient.connected()) {
+            rxClient = rxServer.available();
+            if (rxClient) {
+                rxClient.setNoDelay(true);
+                Serial.println("Server connected to ESP RX port 4999");
+                inputBuffer = "";
+            }
+        }
+
+        while (rxClient && rxClient.connected() && rxClient.available())
+        {
+            char c = (char)rxClient.read();
+
+            if (c == '\n') {
+                Serial.print("Received from server (4999): ");
+                Serial.println(inputBuffer);
+
+                //Handle message
+                Serial.println("MSG: " + inputBuffer);
+
+                inputBuffer = "";
+            } else if (c != '\r') {
+                inputBuffer += c;
+            }
+        }
+
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+}
+
+

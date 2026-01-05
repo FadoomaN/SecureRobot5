@@ -7,6 +7,7 @@ public class Server {
     private int port;
     private Log logger;
     private Visual visualizer;
+    private TestServerWindow testServer;
 
     public Server(int port) {
         this.port = port;
@@ -16,6 +17,7 @@ public class Server {
 
         logger = new Log();
         visualizer = new Visual();
+        testServer = new TestServerWindow("localhost", 4999);
 
         System.out.println("Starting server...");
 
