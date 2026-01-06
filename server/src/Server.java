@@ -17,7 +17,6 @@ public class Server {
 
         logger = new Log();
         visualizer = new Visual();
-        testServer = new TestServerWindow("localhost", 4999);
 
         System.out.println("Starting server...");
 

@@ -1,17 +1,21 @@
 #include "WifiServerCom.h"
 #include <WiFi.h>
 #include <WiFiClient.h>
+#include <WiFiUDP.h>
 
 // TODO: byt till ditt riktiga nätverk + server-IP
 static const char* WIFI_SSID      = "FadiHS";
 static const char* WIFI_PASSWORD  = "fadi2003";
-static const char* SERVER_IP      = "192.168.62.153";
+static const char* SERVER_IP      = "192.168.98.153";
 static const uint16_t SERVER_PORT = 5000;
-static const uint16_t FROM_SERVER_PORT = 4999;
 
 static WiFiClient serverClient;
 static unsigned long lastConnectAttempt = 0;
 static const unsigned long RECONNECT_INTERVAL_MS = 5000;
+
+static WiFiServer rxServer(SERVER_PORT);
+WiFiUDP udp;
+static bool rxServerStarted = false;
 
 static void ensureWifiConnected() {
     if (WiFi.status() == WL_CONNECTED) return;
@@ -19,14 +23,27 @@ static void ensureWifiConnected() {
     WiFi.mode(WIFI_STA);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-    Serial.print("Connecting to WiFi");
-    while (WiFi.status() != WL_CONNECTED) {
+    Serial.print("[WiFi] Connecting to '");
+    Serial.print(WIFI_SSID);
+    Serial.println("'...");
+    
+    int attempts = 0;
+    int maxAttempts = 40;  // 20 seconds (500ms * 40)
+    while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
         delay(500);
         Serial.print(".");
+        attempts++;
     }
     Serial.println();
-    Serial.print("WiFi connected, IP: ");
-    Serial.println(WiFi.localIP());
+    
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.print("[WiFi] *** CONNECTED *** IP: ");
+        Serial.println(WiFi.localIP());
+    } else {
+        Serial.print("[WiFi] *** CONNECTION FAILED after ");
+        Serial.print(attempts * 500);
+        Serial.println("ms ***");
+    }
 }
 
 
@@ -51,9 +68,9 @@ static void ensureServerConnected() {
 
 
 void wifiServerSetup() {
-    ensureWifiConnected();
-    ensureServerConnected();
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    // Don't try to connect in setup - it will block
+    // Let the tasks handle WiFi connection and server startup
+    Serial.println("[Setup] WiFi server setup complete - tasks will handle connection");
 }
 
 
@@ -89,53 +106,41 @@ bool sendToServer(const String& line) {
 }
 
 
-void receiveFromServer(void* param)
-{
-    (void)param;
+void receiveFromServer(void* param) {
+  (void)param;
 
-    static WiFiServer rxServer(FROM_SERVER_PORT);
-    static bool started = false;
+  // Vänta på WiFi
+  while (WiFi.status() != WL_CONNECTED) {
+    vTaskDelay(pdMS_TO_TICKS(200));
+  }
 
-    if (!started) {
-        rxServer.begin();
-        rxServer.setNoDelay(true);
-        started = true;
-        Serial.println("RX server listening on port 4999");
+  udp.begin(6000);
+  Serial.printf("[UDP] Listening on %u (IP %s)\n",
+                6000, WiFi.localIP().toString().c_str());
+
+  char buf[512];
+
+  for (;;) {
+    int packetSize = udp.parsePacket();
+    if (packetSize > 0) {
+      int len = udp.read(buf, sizeof(buf) - 1);
+      if (len > 0) {
+        buf[len] = '\0';
+
+        String msg = String(buf);
+
+        Serial.print("[UDP] Received String: ");
+        Serial.println(msg);
+
+        //Hantera medelande
+
+      }
     }
-
-    WiFiClient rxClient;
-    String inputBuffer;
-
-    while (true)
-    {
-        if (!rxClient || !rxClient.connected()) {
-            rxClient = rxServer.available();
-            if (rxClient) {
-                rxClient.setNoDelay(true);
-                Serial.println("Server connected to ESP RX port 4999");
-                inputBuffer = "";
-            }
-        }
-
-        while (rxClient && rxClient.connected() && rxClient.available())
-        {
-            char c = (char)rxClient.read();
-
-            if (c == '\n') {
-                Serial.print("Received from server (4999): ");
-                Serial.println(inputBuffer);
-
-                //Handle message
-                Serial.println("MSG: " + inputBuffer);
-
-                inputBuffer = "";
-            } else if (c != '\r') {
-                inputBuffer += c;
-            }
-        }
-
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-    }
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
 }
 
 
+void testMsgHandle(const String& msg) {
+    Serial.println("Handling message: " + msg);
+}
