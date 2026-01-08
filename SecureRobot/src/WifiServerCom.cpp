@@ -82,3 +82,45 @@ bool sendToServer(const String& line) {
     size_t written = serverClient.print(withNewline);
     return written == withNewline.length();
 }
+
+
+void receiveFromServer(void* param) {
+  (void)param;
+
+  // Vänta på WiFi
+  while (WiFi.status() != WL_CONNECTED) {
+    vTaskDelay(pdMS_TO_TICKS(200));
+  }
+
+  udp.begin(6000);
+  Serial.printf("[UDP] Listening on %u (IP %s)\n",
+                6000, WiFi.localIP().toString().c_str());
+
+  char buf[512];
+
+  for (;;) {
+    int packetSize = udp.parsePacket();
+    if (packetSize > 0) {
+      int len = udp.read(buf, sizeof(buf) - 1);
+      if (len > 0) {
+        buf[len] = '\0';
+
+        String msg = String(buf);
+
+        Serial.print("[UDP] Received String: ");
+        Serial.println(msg);
+
+        //Hantera medelande
+
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
+}
+
+
+void testMsgHandle(const String& msg) {
+    Serial.println("Handling message: " + msg);
+
+    
+}
