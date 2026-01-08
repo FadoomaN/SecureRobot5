@@ -427,6 +427,7 @@ void startNetwork()
     xTaskCreatePinnedToCore(runningTasks, "runningTasks", 4096, NULL, 1, NULL, 1);
     xTaskCreatePinnedToCore(runningUpdateMessages, "runningUpdateMessages", 4096, NULL, 1, NULL, 1);  //För att kontinuerligt skicka updates
     xTaskCreatePinnedToCore(runningReceiveMessages, "runningReceiveMessages", 4096, NULL, 1, NULL, 1);  //För att kontinuerligt ta emot medelanden
+    xTaskCreatePinnedToCore(receiveFromServer, "receiveFromServer", 4096, NULL, 1, NULL, 1);
 
 }
 
