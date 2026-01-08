@@ -22,7 +22,7 @@ int counter = 0;
 int battery = 0;
 int msgCount = 0;
 
-nodeRobot currentRobot;
+nodeRobot* currentRobot = nullptr;
 std::vector<Vertex> nodeList;//positioner
 std::vector<nodeRobot> robotList;//kopplade robbotar
 bool isMaster = false;
@@ -282,58 +282,45 @@ float getHeading(const float x1, float y1, const float x2, const float y2) {
     return angle_deg;
 }
 
-void broadcast(Message message) {
+void broadcast(String message) {
     // Förmedla position och ID
 
     //sendMessage(getPosition(), getMacAddress());
-    send_msg_bcast(message.messsage);
-    Serial.println("MEDELANDE SKICKAT: " + message.messsage);
+    send_msg_bcast(message);
+    //Serial.println("MEDELANDE SKICKAT: " + message.messsage);
 
 }
 
 
-void sendMessageToServer(Message msg) 
+void sendMessageToServer(String msg) 
 {
     // Skickar position/ID
     // Inkludera sig själv som master
 
     //send_msg_bcast(msg.messsage);
-    Serial.println("send to server: " + msg.messsage);
+    Serial.println("send to server: " + msg);
 
-    if (!sendToServer(msg.messsage)) {
+    if (!sendToServer(msg)) {
         Serial.println("sendMessageToServer: FAILED to send to Java-server");
     }
     
 
 }
 
-
-Message receiveMessage() {
+//FIXA|||||||||||||||||||||||||||||||||||||||||||||||||||||
+String receiveMessage() {
 
     if (receivedMsg.empty()) {
-        Message temp;
-        temp.messageId = 0;
-        temp.messsage = "no message";
-        temp.time = 0;
-        return temp;
+        return "no message";
     }
 
     String msg = receivedMsg[0];
     receivedMsg.erase(receivedMsg.begin());
     receivedMsg.shrink_to_fit();
-    
 
-    counter = 0;
-    battery = 0;
-    msgCount = 0;
-
-    Message result;
-    result.messageId = 0;
-    result.messsage = "message processed";
-    result.time = 0;
     
-    Serial.println("MOTAGGET MEDELANDE: " + msg);
-    return result;
+    //Serial.println("MOTAGGET MEDELANDE: " + msg);
+    return msg;
     // Tar emot meddelande
     // Tar emot position/ID
     // Tar emot kommandon från master
@@ -344,13 +331,13 @@ Message receiveMessage() {
 
 void navigate(const std::vector<Vertex*>& path) {
     for (Vertex* v : path) {
-        float heading = getHeading(currentRobot.pos->x, currentRobot.pos->y, v->x, v->y);
-        Serial.println("HEADING före............................: " + String(heading));
-        turn(currentRobot.pos, heading);
-        Serial.println("HEADING efter............................: " + String(currentRobot.pos->theta));
-        move_forward(currentRobot.pos, v->x, v->y);
-        Serial.println("MOVE efter............................: " + String(currentRobot.pos->theta));
-        currentRobot.currentVertex = v;
+        float heading = getHeading(currentRobot->pos->x, currentRobot->pos->y, v->x, v->y);
+        Serial.println("HEADING före............................: " + String(heading) + "     current vertID: " + String(currentRobot->currentVertex->id) + "   Target: " + String(v->id));
+        turn(currentRobot->pos, heading);
+        Serial.println("HEADING efter............................: " + String(currentRobot->pos->theta) + "     current vertID: " + String(currentRobot->currentVertex->id) + "   Target: " + String(v->id));
+        move_forward(currentRobot->pos, v->x, v->y);
+        Serial.println("MOVE efter............................: " + String(currentRobot->pos->theta) + "     current vertID: " + String(currentRobot->currentVertex->id) + "   Target: " + String(v->id));
+        currentRobot->currentVertex = v;
     }
 }
 
@@ -440,7 +427,6 @@ void startNetwork()
     xTaskCreatePinnedToCore(runningTasks, "runningTasks", 4096, NULL, 1, NULL, 1);
     xTaskCreatePinnedToCore(runningUpdateMessages, "runningUpdateMessages", 4096, NULL, 1, NULL, 1);  //För att kontinuerligt skicka updates
     xTaskCreatePinnedToCore(runningReceiveMessages, "runningReceiveMessages", 4096, NULL, 1, NULL, 1);  //För att kontinuerligt ta emot medelanden
-    xTaskCreatePinnedToCore(receiveFromServer, "receiveFromServer", 4096, NULL, 1, NULL, 1);
 
 }
 
@@ -449,9 +435,9 @@ void runningUpdateMessages(void * parameter)
 {
   while (true)
   {
-    
-    Serial.println(createUpdate());
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    createUpdate();
+    //Serial.println(createUpdate());
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }
     vTaskDelete(NULL);
 }
@@ -473,6 +459,7 @@ void runningTasks(void * parameter)
     while(true)
     {
         doTask();
+
     }
     vTaskDelete(NULL);
 }
@@ -486,12 +473,11 @@ void runningServerChecks(void * parameter)
     }
 }
 
-// Skapar instruktioner för alla robotar-------------------------------
+// Skapar instruktioner för alla robotar|||||||||||||||||||||||||||||||||||||||||???
 String plan() {
     
     std::vector<nodeRobot*> avelableRobots;
     std::vector<nodeRobot*> workingRobots;
-    std::vector<int> roomsBeingChecked;
 
     //kollar vilka robotar som är lediga
     for (int i = 0; i < robotList.size(); i++)
@@ -522,41 +508,56 @@ String plan() {
     
     for(int i = 0; i < robotList.size(); i++)
     {
-        instructions = instructions + ":1:" + robotList[i].macAddress + ":2:" + robotList[i].taskedRoom + ":3:";
+        //FIXA SÅ DEN ÄVEN SKICKAR TID|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+        instructions = instructions + ":a:" + robotList[i].macAddress + ":b:" + robotList[i].taskedRoom + ":c:";
     }
     return instructions;
 }
 
+//om rummet har mer än 5 noder så krävs 2 robotar för att vara upptagen
 bool checkIfRoomInProgress(int room, std::vector<nodeRobot*> workingRobots)
 {
+    //räknar noder i rummet
+    int nodeCount = 0;
+    for (const Vertex& v : nodeList)
+    {
+        if (v.room == room)
+            nodeCount++;
+    }
+    
+
+int workerCount = 0;
+    //räknar robotar som jobbar med rummet
     for (int i = 0; i < workingRobots.size(); i++)
     {
         if (workingRobots[i]->taskedRoom == room)
         {
-            return true;
+            workerCount++;
         }
     }
-    return false;
-}
-
-
-int createMessageId() {
-    
-    for (int i = 0; i < robotList.size(); i++)
+    if (nodeCount > 5)
     {
-        
+        if (workerCount <= 2)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        if (workerCount <= 1)
+        {
+            return false;
+        }
     }
     
-   return 0;
+    return true;
 }
 
-
-
-
+//FIXA SÅ ATT MEDELANDENA ÄR ;1;bla bla;2; osv  ||||||||||||||||||||||||||||||||||||||||||||||||||||||||
 String createUpdate() {
     //Create message updating current state, currently only pos
     //String message = "<uppdate>|:pos:" + String(currentRobot.pos->x) + "," + String(currentRobot.pos->y) + ":currentVertex:" + currentRobot.currentVertex.id + ":battery:" + String(checkBattery()) + "|";
-    String message = "<Uppdate>:1:" + currentRobot.macAddress + ":2:" + currentRobot.currentVertex->room + ":3:" + currentRobot.taskedRoom + ":4:" + currentRobot.currentVertex->checked + ":5:" + currentRobot.currentVertex->id + ":6:" + currentRobot.battery + ":7:" + String(currentRobot.pos->x) + ":8:" + String(currentRobot.pos->y) + ":9:";
+    String message = "<Uppdate>:a:" + currentRobot->macAddress + ":b:" + currentRobot->currentVertex->room + ":c:" + currentRobot->taskedRoom + ":d:" + currentRobot->currentVertex->checked + ":e:" + currentRobot->currentVertex->id + ":f:" + currentRobot->battery + ":g:" + String(currentRobot->pos->x) + ":h:" + String(currentRobot->pos->y) + ":i:";
     return message;
 }
 
@@ -569,20 +570,19 @@ String createConnectionMessage()
 }
 
 
-void dealWithMessage(Message msg)
+void dealWithMessage(String message)
 {
-    String message = msg.messsage;
 
     if(message.indexOf("<Uppdate>") > -1)
     {
-        Serial.println("Master: " + message);
+        //Serial.println("Master: " + message);
         
-        String mac = message.substring(message.indexOf(":1:") + 3, message.indexOf(":2:"));
-        int currentRoom = message.substring(message.indexOf(":2:") + 3, message.indexOf(":3:")).toInt();
-        int taskedRoom = message.substring(message.indexOf(":3:") + 3, message.indexOf(":4:")).toInt();
-        bool checked = message.substring(message.indexOf(":4:") + 3, message.indexOf(":5:"));
-        int id = message.substring(message.indexOf(":5:") + 3, message.indexOf(":6:")).toInt();
-        int battery = message.substring(message.indexOf(":6:") + 3, message.indexOf(":6:")).toDouble();
+        String mac = message.substring(message.indexOf(":a:") + 3, message.indexOf(":b:"));
+        int currentRoom = message.substring(message.indexOf(":b:") + 3, message.indexOf(":c:")).toInt();
+        int taskedRoom = message.substring(message.indexOf(":c:") + 3, message.indexOf(":d:")).toInt();
+        bool checked = message.substring(message.indexOf(":d:") + 3, message.indexOf(":e:"));
+        int id = message.substring(message.indexOf(":e:") + 3, message.indexOf(":f:")).toInt();             //ERSÄTT MED TID??||||||||||||||||||||||||||||||||||||||||||||
+        int battery = message.substring(message.indexOf(":f:") + 3, message.indexOf(":g:")).toDouble();
 
         Serial.println("update info -> Mac: " + mac + "  currentroom: " + String(currentRoom) + "   tasked room: " + String(taskedRoom) + "  checked: " + checked + "   id: " + String(id) + "    battery: " + String(battery));
 
@@ -604,22 +604,23 @@ void dealWithMessage(Message msg)
     }
     else if(message.indexOf("<instructions>") > -1)
     {
-        Serial.println("Master: " + message);
+        //Serial.println("Master: " + message);
 
         
-        
+        //LÄGG TILL TID OCH SOMEHOW SKICKA HELA NODLISTAN|||||||||||||||||||||||||||||||||||||||||||
         int lastInstanceIndex = 0;
-        while(message.indexOf(":1:", lastInstanceIndex) != -1)
+        while(message.indexOf(":a:", lastInstanceIndex) != -1)
         {
-            int beginning = message.indexOf(":1:", lastInstanceIndex)+3;
-            int end = message.indexOf(":2:", message.indexOf(":1:", lastInstanceIndex) + 3);
+            int beginning = message.indexOf(":a:", lastInstanceIndex)+3;
+            int end = message.indexOf(":b:", message.indexOf(":a:", lastInstanceIndex) + 3);
             
-            if (message.substring(beginning, end).equals(currentRobot.macAddress))
+            if (message.substring(beginning, end).equals(currentRobot->macAddress))
             {
-                beginning = message.indexOf(":2:", lastInstanceIndex)+3;
-                end = message.indexOf(":3:", message.indexOf(":2:", lastInstanceIndex) + 3);
+                beginning = message.indexOf(":b:", lastInstanceIndex)+3;
+                end = message.indexOf(":c:", message.indexOf(":b:", lastInstanceIndex) + 3);
 
-                currentRobot.taskedRoom = message.substring(beginning, end).toInt();
+                currentRobot->taskedRoom = message.substring(beginning, end).toInt();
+                //Serial.println("UPDATERADE TASKED ROOM: " + String(currentRobot.taskedRoom));
             }
 
             lastInstanceIndex = end;
@@ -630,7 +631,6 @@ void dealWithMessage(Message msg)
 }
 
 
-//std::vector<String> 
 
 
 void run() {
@@ -641,13 +641,11 @@ void run() {
 
   while(isMaster) {
 
-    Message instructions;
-    instructions.messsage = plan();
-    instructions.time = millis();
+    //Serial.println("RUN START  TASKED ROOM: " + String(currentRobot.taskedRoom));
+    String instructions = plan();
 
-    Message uppdate;
-    uppdate.messsage = createUpdate();
-    sendToServer(uppdate.messsage);
+    String uppdate = createUpdate();
+    sendToServer(uppdate);
     //temp.messageId();
     //skicka till alla robotar
     //test
@@ -658,17 +656,17 @@ void run() {
 
     dealWithMessage(instructions);
     Serial.println();
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
 
+    //Serial.println("RUN END    TASKED ROOM: " + String(currentRobot.taskedRoom));
   }
 
   while (!isMaster)
   {
-    Message message;
-    message.time = millis();
-    message.messageId = createMessageId();
-    message.messsage = createUpdate();
+    String message = createUpdate();
     broadcast(message);
+    sendToServer(message);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
   }
 }
 
@@ -699,26 +697,28 @@ void detectionSetUp(){
 
 void setUp() {
     // Initial setup-logik
-    currentRobot.isMaster = false;
-    currentRobot.macAddress = getMac();
-    currentRobot.pos = init_position();
 
     setupVertexes();
-    currentRobot.currentVertex = getVertex(currentRobot.pos->x, currentRobot.pos->y);
-    if (!currentRobot.currentVertex)
+
+    nodeRobot temp;
+    robotList.push_back(temp);
+    currentRobot = &robotList.back();
+
+    currentRobot->isMaster = false;
+    currentRobot->macAddress = getMac();
+    currentRobot->pos = init_position();
+
+    currentRobot->currentVertex = getVertex(currentRobot->pos->x, currentRobot->pos->y);
+    if (!currentRobot->currentVertex)
     {
         Serial.println("Error: Vertex doesnt existsaddas");
     }
-    currentRobot.taskedRoom = 0;
-    robotList.push_back(currentRobot);
+    currentRobot->taskedRoom = 0;
 
-
+    wifiServerSetup();
+    setup_communication();
     createMaster();
     startNetwork();
-    detectionSetUp();
-    setup_communication();
-    wifiServerSetup();
-
 
     run();
 
@@ -727,26 +727,40 @@ void setUp() {
 
 
 //fixa senare
-void createMaster() {
-    // Skapa / välj master
-    isMaster = true;
-    for (int i = 0; i < countPeers(); i++)
-    {
-        if(nodes[i].inUse)
-        {
-            String mac = bytesToString(nodes[i].mac, sizeof(nodes[i].mac));
+void createMaster()
+{
+    static bool lastIsMaster = false;
+    static bool first = true;
 
-            if(mac = currentRobot.macAddress)
-            {
-                isMaster = true;
-            } 
-            else{
-                isMaster = false;
-            }
-        }
+    int best = -1;
+    for (int i = 0; i < MAX_NODES; i++) {
+        if (!nodes[i].inUse) continue;
+        if (best < 0 || memcmp(nodes[i].mac, nodes[best].mac, 6) < 0) best = i;
     }
-    countPeers();
+
+    if (best < 0) {
+        isMaster = true;
+    } else {
+        isMaster = sameMac(nodes[best].mac, selfMac);
+    }
+
+    if (first || isMaster != lastIsMaster) {
+        first = false;
+        lastIsMaster = isMaster;
+
+        Serial.print("I AM ");
+        Serial.println(isMaster ? "MASTER" : "SLAVE");
+
+        Serial.print("Self: ");
+        for(int k=0;k<6;k++){ if(k) Serial.print(':'); Serial.printf("%02X", selfMac[k]); }
+        Serial.println();
+
+        Serial.print("Lowest: ");
+        for(int k=0;k<6;k++){ if(k) Serial.print(':'); Serial.printf("%02X", nodes[best].mac[k]); }
+        Serial.println();
+    }
 }
+
 
 
 void charge() {
@@ -798,25 +812,33 @@ bool allChecked(int targetRoom, const std::vector<Vertex>& nodeList) {
 
 void doTask()
 {
-    Serial.println("----------------------------doing task: " + String(currentRobot.taskedRoom));
-    if(currentRobot.taskedRoom != 0)
+    
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    Serial.println("---do task?: " + String(currentRobot->taskedRoom));
+    if(currentRobot->taskedRoom != 0)
     {
-        Serial.println("+++++++++++++++++++++++++doing task: " + String(currentRobot.taskedRoom));
-        int targetRoom = currentRobot.taskedRoom;
-        Vertex* start = currentRobot.currentVertex;
+        Serial.println("+++doing task: " + String(currentRobot->taskedRoom));
+        int targetRoom = currentRobot->taskedRoom;
+        Vertex* start = currentRobot->currentVertex;
         Vertex* goal;
-        if (((currentRobot.currentVertex->room == 1 || currentRobot.currentVertex->room == 2) && targetRoom == 3) || (currentRobot.currentVertex->room == 3 && targetRoom == 2)) {
-        goal = &nodeList[18];
-    }
-    else if (((currentRobot.currentVertex->room == 3 || currentRobot.currentVertex->room == 2) && targetRoom == 1) || (currentRobot.currentVertex->room == 1 && targetRoom == 2)) {
-        goal = &nodeList[0];
-    }
-    else if ((currentRobot.currentVertex->room == 1 && targetRoom == 1) || currentRobot.currentVertex->room == 2 && targetRoom == 2) {
-        goal = &nodeList[0];
-    }
-    else if (currentRobot.currentVertex->room == 3 && targetRoom == 3) {
-        goal = &nodeList[18];
-    } 
+        if (((currentRobot->currentVertex->room == 1 || currentRobot->currentVertex->room == 2) && targetRoom == 3) || (currentRobot->currentVertex->room == 3 && targetRoom == 2)) {
+            goal = &nodeList[18];
+            Serial.println("+++");
+        }
+        else if (((currentRobot->currentVertex->room == 3 || currentRobot->currentVertex->room == 2) && targetRoom == 1) || (currentRobot->currentVertex->room == 1 && targetRoom == 2)) {
+            goal = &nodeList[0];
+            Serial.println("+++");
+        }
+        else if ((currentRobot->currentVertex->room == 1 && targetRoom == 1) || currentRobot->currentVertex->room == 2 && targetRoom == 2) {
+            goal = &nodeList[0];
+            Serial.println("+++");
+        }
+        else if (currentRobot->currentVertex->room == 3 && targetRoom == 3) {
+            goal = &nodeList[18];
+            Serial.println("+++");
+        } 
+
+        Serial.println("Vag till nod: " + String(goal->id));
         std::vector<Vertex*> path = getPath(start, goal);
         int i = 0;
         for (Vertex* v : path) {
@@ -824,22 +846,29 @@ void doTask()
         Serial.println("''''''''''Path:  " + String(i) + "   " + String(v->id));
         }
         navigate(path);
-        start = currentRobot.currentVertex;
+        start = currentRobot->currentVertex;
         while (!allChecked(targetRoom, nodeList)) {
+            Serial.println("NIGGGGGGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+            printPeers();
         Vertex* next = nullptr;
-        for (Vertex* v : currentRobot.currentVertex->neighbors) {
+        for (Vertex* v : currentRobot->currentVertex->neighbors) {
             if (v->room == targetRoom && !v->checked) {
                 next = v;
                 break;
             }
         }
-        float heading = getHeading(currentRobot.pos->x, currentRobot.pos->y, next->x, next->y);
-        turn(currentRobot.pos, heading);
-        move_forward(currentRobot.pos, next->x, next->y);
-        currentRobot.currentVertex = next;
+
+
+        float heading = getHeading(currentRobot->pos->x, currentRobot->pos->y, next->x, next->y);
+        turn(currentRobot->pos, heading);
+        move_forward(currentRobot->pos, next->x, next->y);
+        currentRobot->currentVertex = next;
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        currentRobot.currentVertex->checked = true;
+        currentRobot->currentVertex->checked = true;
+        Serial.println(" vi checkat nu nod: " + String(currentRobot->currentVertex->id));
         }
+            currentRobot->taskedRoom = 0;
+            Serial.println("NIGGGGGGEEEEEEEEEEEEEEEEEEEEEEEEEER");
     }
 
 
@@ -849,9 +878,9 @@ void doTask()
 void restart() {
     nodeList.clear();
     setupVertexes();
-    currentRobot.currentVertex = getVertex(currentRobot.pos->x, currentRobot.pos->y);
+    currentRobot->currentVertex = getVertex(currentRobot->pos->x, currentRobot->pos->y);
 }
 
 void quit() {
-    delete currentRobot.pos;
+    delete currentRobot->pos;
 }

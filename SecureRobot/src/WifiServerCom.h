@@ -6,7 +6,5 @@
 void wifiServerSetup();
 void wifiServerLoop();                  // kan kallas i loop() eller task
 bool sendToServer(const String& line);  // skickar en rad (lägger till '\n')
-void receiveFromServer(void* param);
-void testMsgHandle(const String& msg);
 
 #endif
