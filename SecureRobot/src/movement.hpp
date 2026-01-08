@@ -4,7 +4,7 @@
 #include "position.hpp"
 
 static constexpr float UPDATE_INTERVAL = 0.05f;
-static constexpr float METERS_PER_SEC = 0.5f;
+static constexpr float METERS_PER_SEC = 8.f;
 static constexpr float ROTATIONS_PER_SEC = METERS_PER_SEC / WHEEL_CIRCUMFERENCE;
 static constexpr float TURN_SPEED = 22.5f;
 

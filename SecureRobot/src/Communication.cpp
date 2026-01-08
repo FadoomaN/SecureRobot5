@@ -36,29 +36,44 @@ void sortNodes() {
 
 
 int insertNodeIfMissing(const uint8_t mac[6]) {
-  int idx = findNode(mac);
-  if(idx >= 0) return idx;
 
-  for(int i=0; i<MAX_NODES; i++) {
-    if(!nodes[i].inUse) {
+  // ✅ If this is *my own MAC*, just refresh timestamp and return index 0
+  if (sameMac(mac, selfMac)) {
+    nodes[0].inUse = true;
+    memcpy(nodes[0].mac, selfMac, 6);
+    nodes[0].lastSeen = millis();
+    return 0;
+  }
+
+  // Already known node → refresh timestamp
+  int idx = findNode(mac);
+  if (idx >= 0) {
+    nodes[idx].lastSeen = millis();
+    return idx;
+  }
+
+  // Find free slot
+  for (int i = 0; i < MAX_NODES; i++) {
+    if (!nodes[i].inUse) {
       nodes[i].inUse = true;
       memcpy(nodes[i].mac, mac, 6);
       nodes[i].lastSeen = millis();
 
       Serial.print("ADDED: ");
-      for(int k=0; k<6; k++) {
-        if(k) Serial.print(':');
+      for (int k = 0; k < 6; k++) {
+        if (k) Serial.print(':');
         Serial.printf("%02X", mac[k]);
       }
-      Serial.println();
 
       sortNodes();
       return i;
     }
   }
+
   Serial.println("List full, cannot add node.");
   return -1;
 }
+
 
 void onRecv(const uint8_t* mac, const uint8_t* data, int len) {
     if(!mac || !data || len <= 0) return;
@@ -107,8 +122,8 @@ void handleMsg(String msg) {
   createMaster();
   updateLed();
   ledBlink();
-  Serial.print("ESPNOW RX: ");
-  Serial.println(msg);
+  //Serial.print("ESPNOW RX: ");
+  //Serial.println(msg);
   receivedMsg.push_back(msg);
 }
 
@@ -124,18 +139,26 @@ void heartbeatSender(void*) {
 void nodeTimeoutChecker(void*) {
   while(true) {
     unsigned long now = millis();
-    for (int i = 1; i < MAX_NODES; ++i) {
-      if (nodes[i].inUse && now - nodes[i].lastSeen > TimeUntilOff) {
+
+    for (int i = 0; i < MAX_NODES; ++i) {
+      if (!nodes[i].inUse) continue;
+
+      // ✅ NEVER timeout yourself, even if sorting moved you away from index 0
+      if (sameMac(nodes[i].mac, selfMac)) continue;
+
+      if (now - nodes[i].lastSeen > TimeUntilOff) {
         Serial.print("OFFLINE: ");
         for(int k=0;k<6;k++){
           if(k) Serial.print(':');
           Serial.printf("%02X", nodes[i].mac[k]);
         }
         Serial.println();
+
         nodes[i].inUse = false;
         sortNodes();
       }
     }
+
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
@@ -165,7 +188,7 @@ void sendHello() {
 }
 
 void send_bytes_bcast(const uint8_t* msg, size_t len) {
-  Serial.println();
+  //Serial.println();
   esp_now_send(BCAST, msg, len);
 }
 
@@ -252,6 +275,30 @@ void setup_communication(){
 
   xTaskCreatePinnedToCore(heartbeatSender, "Heartbeat", 4096, NULL, 1, NULL, 0);
   xTaskCreatePinnedToCore(nodeTimeoutChecker, "TimeoutCheck", 4096, NULL, 1, NULL, 0);
+}
+
+
+void printPeers()
+{
+  Serial.println("=== PEERS (inUse) ===");
+  int count = 0;
+
+  for (int i = 0; i < MAX_NODES; i++)
+  {
+    if (!nodes[i].inUse) continue;
+
+    Serial.printf("[%d] ", i);
+    for (int k = 0; k < 6; k++) {
+      if (k) Serial.print(':');
+      Serial.printf("%02X", nodes[i].mac[k]);
+    }
+
+    Serial.printf("  lastSeen=%lu ms ago\n", (unsigned long)(millis() - nodes[i].lastSeen));
+    count++;
+  }
+
+  Serial.printf("Total peers (including self): %d\n", count);
+  Serial.println("======================");
 }
 
 

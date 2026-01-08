@@ -7,13 +7,13 @@
 void move_forward(Position* pos, const float target_x, const float target_y) {
     while (true) {
         float distance = sqrt(pow(target_x - pos->x, 2) + pow(target_y - pos->y, 2));
-        Serial.println("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: " + String(distance) + "      current: " + String(pos->x) + ", " + String(pos->y) + "        Target: " + String(target_x) + ", " + String(target_y));
+        //Serial.println("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: " + String(distance) + "      current: " + String(pos->x) + ", " + String(pos->y) + "        Target: " + String(target_x) + ", " + String(target_y));
         if (distance <= 1.5f) {
             pos->x = target_x;
             pos->y = target_y;
             break;
         }
-        vTaskDelay( UPDATE_INTERVAL/ portTICK_PERIOD_MS);
+        vTaskDelay( UPDATE_INTERVAL * 1000/ portTICK_PERIOD_MS);
         update_position(pos, ROTATIONS_PER_SEC, UPDATE_INTERVAL);
     }
 }
@@ -31,7 +31,7 @@ void turn(Position* pos, const float target_theta) {
             pos->theta = target_theta;
             break;
         }
-        vTaskDelay( UPDATE_INTERVAL/ portTICK_PERIOD_MS);
+        vTaskDelay( UPDATE_INTERVAL * 100/ portTICK_PERIOD_MS);
         update_heading(pos, TURN_SPEED, UPDATE_INTERVAL, target_theta, direction);
     }
 }

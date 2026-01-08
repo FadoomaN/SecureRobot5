@@ -48,6 +48,7 @@ void updateLed();
 void sendHello();
 void ledBlink();
 void setup_communication();
+void printPeers();
 
 
 #endif

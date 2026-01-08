@@ -12,13 +12,6 @@
 
 // ---- struct / enum definitions ----
 
-struct Message 
-{
-    String messsage;
-    int messageId;
-    int time;
-};
-
 
 struct Vertex {
     float x;
@@ -56,7 +49,7 @@ extern int counter;
 extern int battery;
 extern int msgCount;
 
-extern nodeRobot currentRobot;
+extern nodeRobot* currentRobot;
 extern std::vector<Vertex> nodeList;
 extern std::vector<nodeRobot> robotList;
 extern bool isMaster;
@@ -66,11 +59,11 @@ extern std::vector<String> receivedMsg;
 
 bool checkIfRoomInProgress(int room, std::vector<nodeRobot*> workingRobots);
 void runningTasks(void * parameter);
-void dealWithMessage(Message msg);
+void dealWithMessage(String msg);
 void runningServerChecks(void * parameter);
-Message receiveMessage();
+String receiveMessage();
 void runningReceiveMessages(void * parameter);
-void broadcast(Message message);
+void broadcast(String message);
 void sendMessageToServer();
 void moveTo(Vertex from, Vertex to);
 std::vector<Vertex> getPath(Vertex startPos, Vertex endPos);
