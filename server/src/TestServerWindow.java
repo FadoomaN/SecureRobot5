@@ -91,6 +91,6 @@ public class TestServerWindow {
 
     public static void main(String[] args) {
 
-        new TestServerWindow("0.0.0.0", 5000);
+        new TestServerWindow("0.0.0.0", 6000);
     }
 }

@@ -1,16 +1,18 @@
 #include "WifiServerCom.h"
 #include <WiFi.h>
 #include <WiFiClient.h>
+#include <WiFiUdp.h>
+#include <Arduino.h>
 
 // TODO: byt till ditt riktiga nätverk + server-IP
 static const char* WIFI_SSID      = "bodite";
-static const char* WIFI_PASSWORD  = "123123123";   // undvik å/ä/ö i källkod
-static const char* SERVER_IP      = "10.229.33.140";      // datorns IP-adress
-static const uint16_t SERVER_PORT = 5000;                 // Java-servern
-
+static const char* WIFI_PASSWORD  = "123123123";          
+static const char* SERVER_IP      = "10.229.33.140";
+static const uint16_t SERVER_PORT = 5000;
 static WiFiClient serverClient;
 static unsigned long lastConnectAttempt = 0;
 static const unsigned long RECONNECT_INTERVAL_MS = 5000;
+WiFiUDP udp;
 
 static void ensureWifiConnected() {
     if (WiFi.status() == WL_CONNECTED) return;

@@ -7,7 +7,7 @@
 void move_forward(Position* pos, const float target_x, const float target_y) {
     while (true) {
         float distance = sqrt(pow(target_x - pos->x, 2) + pow(target_y - pos->y, 2));
-        //Serial.println("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: " + String(distance) + "      current: " + String(pos->x) + ", " + String(pos->y) + "        Target: " + String(target_x) + ", " + String(target_y));
+        Serial.println(String(distance) + "      current: " + String(pos->x) + ", " + String(pos->y) + "        Target: " + String(target_x) + ", " + String(target_y));
         if (distance <= 1.5f) {
             pos->x = target_x;
             pos->y = target_y;

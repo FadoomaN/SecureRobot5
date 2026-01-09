@@ -849,7 +849,6 @@ void doTask()
         navigate(path);
         start = currentRobot->currentVertex;
         while (!allChecked(targetRoom, nodeList)) {
-            Serial.println("NIGGGGGGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
             printPeers();
         Vertex* next = nullptr;
         for (Vertex* v : currentRobot->currentVertex->neighbors) {
@@ -869,7 +868,6 @@ void doTask()
         Serial.println(" vi checkat nu nod: " + String(currentRobot->currentVertex->id));
         }
             currentRobot->taskedRoom = 0;
-            Serial.println("NIGGGGGGEEEEEEEEEEEEEEEEEEEEEEEEEER");
     }
 
 

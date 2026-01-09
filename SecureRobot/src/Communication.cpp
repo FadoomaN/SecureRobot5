@@ -164,7 +164,7 @@ void nodeTimeoutChecker(void*) {
 }
 
 void onSent(const uint8_t* mac, esp_now_send_status_t status) {
-  //Serial.println(status == ESP_NOW_SEND_SUCCESS ? "TX OK" : "TX FAIL");
+  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "TX OK" : "TX FAIL");
 }
 
 void setSelfMacToList() {
@@ -188,7 +188,7 @@ void sendHello() {
 }
 
 void send_bytes_bcast(const uint8_t* msg, size_t len) {
-  //Serial.println();
+  Serial.println();
   esp_now_send(BCAST, msg, len);
 }
 
