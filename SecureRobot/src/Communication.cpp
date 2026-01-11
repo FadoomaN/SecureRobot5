@@ -37,7 +37,6 @@ void sortNodes() {
 
 int insertNodeIfMissing(const uint8_t mac[6]) {
 
-  // ✅ If this is *my own MAC*, just refresh timestamp and return index 0
   if (sameMac(mac, selfMac)) {
     nodes[0].inUse = true;
     memcpy(nodes[0].mac, selfMac, 6);
@@ -45,7 +44,6 @@ int insertNodeIfMissing(const uint8_t mac[6]) {
     return 0;
   }
 
-  // Already known node → refresh timestamp
   int idx = findNode(mac);
   if (idx >= 0) {
     nodes[idx].lastSeen = millis();
@@ -143,7 +141,6 @@ void nodeTimeoutChecker(void*) {
     for (int i = 0; i < MAX_NODES; ++i) {
       if (!nodes[i].inUse) continue;
 
-      // ✅ NEVER timeout yourself, even if sorting moved you away from index 0
       if (sameMac(nodes[i].mac, selfMac)) continue;
 
       if (now - nodes[i].lastSeen > TimeUntilOff) {
