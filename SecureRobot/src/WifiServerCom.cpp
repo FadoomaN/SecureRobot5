@@ -5,9 +5,9 @@
 #include <Arduino.h>
 
 // TODO: byt till ditt riktiga nätverk + server-IP
-static const char* WIFI_SSID      = "bodite";
-static const char* WIFI_PASSWORD  = "123123123";          
-static const char* SERVER_IP      = "10.229.33.140";
+static const char* WIFI_SSID      = "FadiHS";
+static const char* WIFI_PASSWORD  = "fadi2003";          
+static const char* SERVER_IP      = "192.168.98.153";
 static const uint16_t SERVER_PORT = 5000;
 static WiFiClient serverClient;
 static unsigned long lastConnectAttempt = 0;
